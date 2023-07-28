@@ -1,29 +1,36 @@
+use std::time::SystemTime;
+
+use tokio_postgres::Error;
+
 use crate::db;
 
-struct Quote {
+pub struct Quote {
+    id: i32,
     user_id: i32,
     text: String,
 }
 
 impl Quote {
-    pub fn init() {
-        let client = db::connect().await?;
+    pub async fn init() -> Result<(), Error> {
+        let client = db::connect().await?();
         client
             .execute(
-                "CREATE TABLE IF NOT EXISTS anime_quote.quotes
+                "CREATE TABLE IF NOT EXISTS anime_quote.$1
             (
                 id SERIAL PRIMARY KEY,
                 user_id INT NOT NULL REFERENCES anime_quote.users(id),
                 text VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
-            );",
+            );", &[&"quotes"]
             )
             .await?;
+
+        Ok(())
     }
 
-    pub fn new(user_id: i32, text: String) -> Self {
-        let client = db::connect().await?;
+    pub async fn new(user_id: i32, text: String) -> Result<Self, Error> {
+        let client = db::connect().await?();
         client
             .execute(
                 "INSERT INTO anime_quote.quotes 
@@ -32,14 +39,16 @@ impl Quote {
                 &[&user_id, &text, &SystemTime::now(), &SystemTime::now()],
             )
             .await?;
-        Quote {
+
+        Ok(Quote {
+            id: -1,
             user_id,
             text,
-        }
+        })
     }
 
-    pub fn find_by_user_id(user_id: i32) -> Vec<Self> {
-        let client = db::connect().await?;
+    pub async fn find_by_user_id(user_id: i32) -> Result<Vec<Self>, Error> {
+        let client = db::connect().await?();
         let rows = client
             .query(
                 "SELECT * FROM anime_quote.quotes WHERE user_id = $1",
@@ -50,30 +59,32 @@ impl Quote {
         let mut quotes = Vec::new();
         for row in rows {
             quotes.push(Quote {
-                user_id: row.get(0),
-                text: row.get(1),
+                id: row.get(0),
+                user_id: row.get(1),
+                text: row.get(2),
             });
         }
 
-        quotes
+        Ok(quotes)
     }
 
-    pub fn find_by_id(id: i32) -> Self {
-        let client = db::connect().await?;
+    pub async fn find_by_id(id: i32) -> Result<Self, Error> {
+        let client = db::connect().await?();
         let row = client
             .query_one(
                 "SELECT * FROM anime_quote.quotes WHERE id = $1",
                 &[&id],
             )
             .await?;
-        Quote {
-            user_id: row.get(0),
-            text: row.get(1),
-        }
+        Ok(Quote {
+            id: row.get(0),
+            user_id: row.get(1),
+            text: row.get(2),
+        })
     }
 
-    pub fn update(&mut self, text: String) {
-        let client = db::connect().await?;
+    pub async fn update(&mut self, text: String) -> Result<(), Error> {
+        let client = db::connect().await?();
         client
             .execute(
                 "UPDATE anime_quote.quotes SET text = $1, updated_at = $2 WHERE id = $3",
@@ -81,20 +92,23 @@ impl Quote {
             )
             .await?;
         self.text = text;
+        Ok(())
     }
 
-    pub fn delete(&self) {
-        let client = db::connect().await?;
+    pub async fn delete(&self) -> Result<(), Error> {
+        let client = db::connect().await?();
         client
             .execute(
                 "DELETE FROM anime_quote.quotes WHERE id = $1",
                 &[&self.id],
             )
             .await?;
+
+        Ok(())
     }
 
-    pub fn find() -> Vec<Self> {
-        let client = db::connect().await?;
+    pub async fn find() -> Result<Vec<Self>, Error> {
+        let client = db::connect().await?();
         let rows = client
             .query(
                 "SELECT * FROM anime_quote.quotes",
@@ -105,11 +119,12 @@ impl Quote {
         let mut quotes = Vec::new();
         for row in rows {
             quotes.push(Quote {
-                user_id: row.get(0),
-                text: row.get(1),
+                id: row.get(0),
+                user_id: row.get(1),
+                text: row.get(2),
             });
         }
 
-        quotes
+        Ok(quotes)
     }
 }

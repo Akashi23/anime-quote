@@ -1,4 +1,6 @@
-mod db; // Import the db module
+mod db;
+mod models;
+mod services; // Import the db module
 
 use tokio_postgres::Error;
 use db::connect;

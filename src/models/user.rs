@@ -1,7 +1,9 @@
 use crate::db;
-use time::SystemTime;
+use std::time::{self, SystemTime};
+use tokio_postgres::Error;
+use crate::models::quote::Quote;
 
-struct User {
+pub struct User {
     id: i32,
     username: String,
     password: String,
@@ -10,24 +12,26 @@ struct User {
 }
 
 impl User {
-    pub fn init() {
-        let client = db::connect().await?;
+    pub async fn init() -> Result<(), Error> {
+        let client = db::connect().await?();
         client
             .execute(
-                "CREATE TABLE IF NOT EXISTS anime_quote.users
+                "CREATE TABLE IF NOT EXISTS anime_quote.$1
             (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
-            );",
+            );", &[&"users"]
             )
             .await?;
+
+        Ok(())
     }
 
-    pub fn new(username: String, password: String) -> Self {
-        let client = db::connect().await?;
+    pub async fn new(username: String, password: String) -> Result<Self, Error> {
+        let client = db::connect().await?();
         client
             .execute(
                 "INSERT INTO anime_quote.users 
@@ -36,48 +40,31 @@ impl User {
                 &[&username, &password, &SystemTime::now(), &SystemTime::now()],
             )
             .await?;
-        User {
-            id: None,
+        Ok(User {
+            id: -1,
             username,
             password,
             created_at: time::SystemTime::now(),
             updated_at: time::SystemTime::now(),
-        }
+        })
     }
 
-    pub fn find_by_username(username: String) -> Self {
-        let client = db::connect().await?;
-        let row = client
-            .query_one(
-                "SELECT * FROM anime_quote.users WHERE username = $1",
-                &[&username],
-            )
-            .await?;
-        User {
-            id: row.get(0),
-            username: row.get(1),
-            password: row.get(2),
-            created_at: row.get(3),
-            updated_at: row.get(4),
-        }
-    }
-
-    pub fn find_by_id(id: i32) -> Self {
-        let client = db::connect().await?;
+    pub async fn find_by_id(id: i32) -> Result<Self, Error> {
+        let client = db::connect().await?();
         let row = client
             .query_one("SELECT * FROM anime_quote.users WHERE id = $1", &[&id])
             .await?;
-        User {
+        Ok(User {
             id: row.get(0),
             username: row.get(1),
             password: row.get(2),
             created_at: row.get(3),
             updated_at: row.get(4),
-        }
+        })
     }
 
-    pub fn update_password(&mut self, password: String) {
-        let client = db::connect().await?;
+    pub async fn update_password(&mut self, password: String) -> Result<(), Error> {
+        let client = db::connect().await?();
         client
             .execute(
                 "UPDATE anime_quote.users SET password = $1 WHERE id = $2",
@@ -85,17 +72,19 @@ impl User {
             )
             .await?;
         self.password = password;
+        Ok(())
     }
 
-    pub fn delete(&self) {
-        let client = db::connect().await?;
+    pub async fn delete(&self) -> Result<(), Error> {
+        let client = db::connect().await?();
         client
             .execute("DELETE FROM anime_quote.users WHERE id = $1", &[&self.id])
             .await?;
+        Ok(())
     }
 
-    pub fn find() -> Vec<Self> {
-        let client = db::connect().await?;
+    pub async fn find() -> Result<Vec<Self>, Error> {
+        let client = db::connect().await?();
         let rows = client
             .query("SELECT * FROM anime_quote.users", &[])
             .await?;
@@ -111,10 +100,11 @@ impl User {
             });
         }
 
-        users
+        Ok(users)
     }
 
-    pub fn quotes(&self) -> Vec<Quote> {
-        Quote::find_by_user_id(self.id)
+    pub async fn quotes(&self) -> Result<Vec<Quote>, Error> {
+        let quotes = Quote::find_by_user_id(self.id).await?;
+        Ok(quotes)
     }
 }

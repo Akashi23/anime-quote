@@ -1,11 +1,12 @@
 use std::rc::Rc;
+use std::env;
 use tokio_postgres::{Client, NoTls, Error};
 
 pub async fn connect() -> Result<impl Fn() -> Rc<Client>, Error> {
     //   to the database.
 
     let (client, connection) =
-    tokio_postgres::connect("host=localhost user=postgres password=postgres", NoTls).await?;
+        tokio_postgres::connect(&env::var("DATABASE_URL").unwrap(), NoTls).await?;
 
     // The connection object performs the actual communication with the database,
     // so spawn it off to run on its own.
