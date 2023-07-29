@@ -6,6 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+argon2 = "0.5.1"
 axum = "0.6.19"
+axum-macros = "0.3.8"
+axum-sessions = "0.5.0"
+hyper = "0.14.27"
+password-hash = "0.5.0"
+rand = "0.8.5"
+serde = "1.0.178"
 tokio = { version = "1.29.1", features = ["macros", "rt-multi-thread"] }
 tokio-postgres = "0.7.8"

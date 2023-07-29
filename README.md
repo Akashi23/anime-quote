@@ -26,7 +26,7 @@ DATABASE_URL=postgres://<username>:<password>@<host>:<port>/<database_name>
 3. Run the following command to start the server:
 
 ```
-cargo run
+make run
 ```
 
 ## License

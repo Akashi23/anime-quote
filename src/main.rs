@@ -1,34 +1,37 @@
-mod db;
+mod routes;
 mod models;
-mod services; // Import the db module
+mod db;
 
-use tokio_postgres::Error;
-use db::connect;
+use axum::Router;
+use axum_sessions::{
+    async_session::MemoryStore,
+    SessionLayer,
+};
+use rand::{rngs::OsRng, RngCore};
 
-#[tokio::main] // By default, tokio_postgres uses the tokio crate as its runtime.
-async fn main() -> Result<(), Error> {
-    // Connect to the database.
-    let connection = connect().await?;
+use routes::auth::auth_router;
+use models::user::User;
+use models::quote::Quote;
 
-    let client = connection();
-    let client2 = connection();
 
-    // Now we can execute a simple statement that just returns its parameter.
-    let rows = client
-        .query("SELECT $1::TEXT", &[&"hello world"])
-        .await?;
+#[tokio::main]
+async fn main() {
+    let store = MemoryStore::new();
 
-    let rows2 = client2
-        .query("SELECT $1::TEXT", &[&"hellworld"])
-        .await?;
+    let mut secret = [0u8; 128];
+    let mut rng = OsRng;
+    rng.try_fill_bytes(&mut secret).unwrap();
+    let session_layer = SessionLayer::new(store, &secret).with_secure(false);
 
-    // And then check that we got back the same string we sent over.
-    let value: &str = rows[0].get(0);
-    println!("value: {}", value);
+    User::init().await.unwrap();
+    Quote::init().await.unwrap();
 
-    let value: &str = rows2[0].get(0);
-    println!("value: {}", value);
+    let app = Router::new()
+        .nest("/auth", auth_router())
+        .layer(session_layer);
 
-    Ok(())
+    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
-

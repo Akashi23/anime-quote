@@ -5,9 +5,9 @@ use tokio_postgres::Error;
 use crate::db;
 
 pub struct Quote {
-    id: i32,
-    user_id: i32,
-    text: String,
+    pub id: i32,
+    pub user_id: i32,
+    pub text: String,
 }
 
 impl Quote {
@@ -15,14 +15,14 @@ impl Quote {
         let client = db::connect().await?();
         client
             .execute(
-                "CREATE TABLE IF NOT EXISTS anime_quote.$1
+                "CREATE TABLE IF NOT EXISTS anime_quote.quotes
             (
                 id SERIAL PRIMARY KEY,
                 user_id INT NOT NULL REFERENCES anime_quote.users(id),
                 text VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
-            );", &[&"quotes"]
+            );", &[]
             )
             .await?;
 

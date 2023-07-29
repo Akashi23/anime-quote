@@ -1,12 +1,14 @@
 use crate::db;
 use std::time::{self, SystemTime};
+use serde::{Serialize, Deserialize};
 use tokio_postgres::Error;
 use crate::models::quote::Quote;
 
+#[derive(Serialize, Deserialize)]
 pub struct User {
-    id: i32,
-    username: String,
-    password: String,
+    pub id: i32,
+    pub username: String,
+    pub password: String,
     created_at: time::SystemTime,
     updated_at: time::SystemTime,
 }
@@ -16,18 +18,28 @@ impl User {
         let client = db::connect().await?();
         client
             .execute(
-                "CREATE TABLE IF NOT EXISTS anime_quote.$1
+                "CREATE TABLE IF NOT EXISTS anime_quote.users
             (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
-            );", &[&"users"]
+            );", &[]
             )
             .await?;
 
         Ok(())
+    }
+
+    pub fn default() -> Self {
+        User {
+            id: -1,
+            username: String::from(""),
+            password: String::from(""),
+            created_at: time::SystemTime::now(),
+            updated_at: time::SystemTime::now(),
+        }
     }
 
     pub async fn new(username: String, password: String) -> Result<Self, Error> {
@@ -38,8 +50,8 @@ impl User {
                     (username, password, created_at, updated_at) 
                     VALUES ($1, $2, $3, $4);",
                 &[&username, &password, &SystemTime::now(), &SystemTime::now()],
-            )
-            .await?;
+            ).await?;
+
         Ok(User {
             id: -1,
             username,
@@ -54,6 +66,22 @@ impl User {
         let row = client
             .query_one("SELECT * FROM anime_quote.users WHERE id = $1", &[&id])
             .await?;
+
+        Ok(User {
+            id: row.get(0),
+            username: row.get(1),
+            password: row.get(2),
+            created_at: row.get(3),
+            updated_at: row.get(4),
+        })
+    }
+
+    pub async fn find_by_username(username: String) -> Result<Self, Error> {
+        let client = db::connect().await?();
+        let row = client
+            .query_one("SELECT * FROM anime_quote.users WHERE username = $1", &[&username])
+            .await?;
+
         Ok(User {
             id: row.get(0),
             username: row.get(1),
@@ -71,6 +99,7 @@ impl User {
                 &[&password, &self.id],
             )
             .await?;
+
         self.password = password;
         Ok(())
     }
