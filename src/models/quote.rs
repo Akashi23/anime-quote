@@ -22,7 +22,8 @@ impl Quote {
                 text VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
-            );", &[]
+            );",
+                &[],
             )
             .await?;
 
@@ -55,7 +56,7 @@ impl Quote {
                 &[&user_id],
             )
             .await?;
-        
+
         let mut quotes = Vec::new();
         for row in rows {
             quotes.push(Quote {
@@ -71,10 +72,7 @@ impl Quote {
     pub async fn find_by_id(id: i32) -> Result<Self, Error> {
         let client = db::connect().await?();
         let row = client
-            .query_one(
-                "SELECT * FROM anime_quote.quotes WHERE id = $1",
-                &[&id],
-            )
+            .query_one("SELECT * FROM anime_quote.quotes WHERE id = $1", &[&id])
             .await?;
         Ok(Quote {
             id: row.get(0),
@@ -98,10 +96,7 @@ impl Quote {
     pub async fn delete(&self) -> Result<(), Error> {
         let client = db::connect().await?();
         client
-            .execute(
-                "DELETE FROM anime_quote.quotes WHERE id = $1",
-                &[&self.id],
-            )
+            .execute("DELETE FROM anime_quote.quotes WHERE id = $1", &[&self.id])
             .await?;
 
         Ok(())
@@ -110,12 +105,9 @@ impl Quote {
     pub async fn find() -> Result<Vec<Self>, Error> {
         let client = db::connect().await?();
         let rows = client
-            .query(
-                "SELECT * FROM anime_quote.quotes",
-                &[],
-            )
+            .query("SELECT * FROM anime_quote.quotes", &[])
             .await?;
-        
+
         let mut quotes = Vec::new();
         for row in rows {
             quotes.push(Quote {

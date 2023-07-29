@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use std::env;
-use tokio_postgres::{Client, NoTls, Error};
+use std::sync::Arc;
+use tokio_postgres::{Client, Error, NoTls};
 
 pub async fn connect() -> Result<impl Fn() -> Arc<Client>, Error> {
     //   to the database.
@@ -17,8 +17,6 @@ pub async fn connect() -> Result<impl Fn() -> Arc<Client>, Error> {
     });
 
     let client_rc = Arc::new(client);
-   
+
     Ok(move || client_rc.clone())
 }
-
-

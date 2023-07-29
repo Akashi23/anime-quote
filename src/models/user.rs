@@ -1,10 +1,10 @@
 use crate::db;
-use std::time::{self, SystemTime};
-use serde::{Serialize, Deserialize};
-use tokio_postgres::Error;
 use crate::models::quote::Quote;
+use serde::{Deserialize, Serialize};
+use std::time::{self, SystemTime};
+use tokio_postgres::Error;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct User {
     pub id: i32,
     pub username: String,
@@ -25,7 +25,8 @@ impl User {
                 password VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
-            );", &[]
+            );",
+                &[],
             )
             .await?;
 
@@ -50,7 +51,8 @@ impl User {
                     (username, password, created_at, updated_at) 
                     VALUES ($1, $2, $3, $4);",
                 &[&username, &password, &SystemTime::now(), &SystemTime::now()],
-            ).await?;
+            )
+            .await?;
 
         Ok(User {
             id: -1,
@@ -79,9 +81,12 @@ impl User {
     pub async fn find_by_username(username: String) -> Result<Self, Error> {
         let client = db::connect().await?();
         let row = client
-            .query_one("SELECT * FROM anime_quote.users WHERE username = $1", &[&username])
+            .query_one(
+                "SELECT * FROM anime_quote.users WHERE username = $1",
+                &[&username],
+            )
             .await?;
-
+        format!("{:?}", row);
         Ok(User {
             id: row.get(0),
             username: row.get(1),
@@ -114,9 +119,7 @@ impl User {
 
     pub async fn find() -> Result<Vec<Self>, Error> {
         let client = db::connect().await?();
-        let rows = client
-            .query("SELECT * FROM anime_quote.users", &[])
-            .await?;
+        let rows = client.query("SELECT * FROM anime_quote.users", &[]).await?;
 
         let mut users = Vec::new();
         for row in rows {
