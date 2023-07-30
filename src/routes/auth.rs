@@ -1,18 +1,17 @@
-use axum::http::Request;
-
-use axum::routing::get;
-use axum::{body::Body, http::StatusCode, routing::post, Json, Router};
-use axum_sessions::async_session::serde_json;
-use axum_sessions::extractors::WritableSession;
-use axum_sessions::SessionHandle;
-
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+    routing::{get, post},
+    Json, Router,
+};
+use axum_sessions::{async_session::serde_json, extractors::WritableSession, SessionHandle};
 use serde::{Deserialize, Serialize};
 
-use argon2::Argon2;
-use password_hash::{PasswordHash, PasswordVerifier};
-
-use crate::models;
-use models::user::User;
+use crate::models::user::User;
 
 #[derive(Deserialize, Debug)]
 pub struct AuthUser {
@@ -46,13 +45,18 @@ impl From<User> for UserWithoutPassword {
 
 #[axum_macros::debug_handler]
 pub async fn register(request: Request<Body>) -> (StatusCode, Json<UserWithoutPassword>) {
-    let hash_string = "$argon2i$v=19$m=65536,t=1,p=1$c29tZXNhbHQAAAAAAAAAAA$+r0d29hqEB0yasKr55ZgICsQGSkl0v0kgwhd+U3wyRo";
-    let password_hash = PasswordHash::new(&hash_string).expect("invalid password hash");
-
     let (parts, body) = request.into_parts();
 
     let payload = hyper::body::to_bytes(body).await.unwrap();
     let payload = serde_json::from_slice::<AuthUser>(&payload).unwrap();
+
+    let argon2 = Argon2::default();
+
+    let salt = SaltString::generate(&mut OsRng);
+    let password = payload.password.as_bytes();
+    let password_hash = argon2
+        .hash_password(password, &salt)
+        .expect("invalid password hash");
 
     let user = User::new(payload.username, password_hash.to_string()).await;
     let user = match user {
@@ -74,7 +78,6 @@ pub async fn login(request: Request<Body>) -> (StatusCode, Json<UserWithoutPassw
     let payload = hyper::body::to_bytes(body).await.unwrap();
     let payload = serde_json::from_slice::<AuthUser>(&payload).unwrap();
     let user = User::find_by_username(payload.username).await;
-    tracing::info!("user: {:?}", user);
     let user = match user {
         Ok(user) => user,
         Err(_) => return (StatusCode::UNAUTHORIZED, Json(Default::default())),
@@ -84,9 +87,8 @@ pub async fn login(request: Request<Body>) -> (StatusCode, Json<UserWithoutPassw
     let mut session = session_handle.write().await;
 
     let password_hash = PasswordHash::new(&user.password).expect("invalid password hash");
-    let algs: &[&dyn PasswordVerifier] = &[&Argon2::default()];
-    if password_hash
-        .verify_password(algs, payload.password)
+    if argon2::Argon2::default()
+        .verify_password(payload.password.as_bytes(), &password_hash)
         .is_ok()
     {
         session.insert("user_id", user.id).unwrap();

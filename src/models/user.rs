@@ -66,7 +66,7 @@ impl User {
     pub async fn find_by_id(id: i32) -> Result<Self, Error> {
         let client = db::connect().await?();
         let row = client
-            .query_one("SELECT * FROM anime_quote.users WHERE id = $1", &[&id])
+            .query_one("SELECT * FROM anime_quote.users WHERE id = $1 LIMIT 1;", &[&id])
             .await?;
 
         Ok(User {
@@ -82,11 +82,11 @@ impl User {
         let client = db::connect().await?();
         let row = client
             .query_one(
-                "SELECT * FROM anime_quote.users WHERE username = $1",
+                "SELECT * FROM anime_quote.users WHERE username = $1 LIMIT 1;",
                 &[&username],
             )
             .await?;
-        format!("{:?}", row);
+        tracing::info!("row: {:?}", row);
         Ok(User {
             id: row.get(0),
             username: row.get(1),

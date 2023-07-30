@@ -7,7 +7,9 @@ use crate::db;
 pub struct Quote {
     pub id: i32,
     pub user_id: i32,
-    pub text: String,
+    pub quote: String,
+    pub anime: String,
+    pub character: String,
 }
 
 impl Quote {
@@ -30,21 +32,23 @@ impl Quote {
         Ok(())
     }
 
-    pub async fn new(user_id: i32, text: String) -> Result<Self, Error> {
+    pub async fn new(user_id: i32, quote: String, anime: String, character: String) -> Result<Self, Error> {
         let client = db::connect().await?();
         client
             .execute(
                 "INSERT INTO anime_quote.quotes 
-                    (user_id, text, created_at, updated_at) 
-                    VALUES ($1, $2, $3, $4);",
-                &[&user_id, &text, &SystemTime::now(), &SystemTime::now()],
+                    (user_id, quote, anime, character, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6);",
+                &[&user_id, &quote, &anime, &character, &SystemTime::now(), &SystemTime::now()],
             )
             .await?;
 
         Ok(Quote {
             id: -1,
             user_id,
-            text,
+            quote,
+            anime,
+            character,
         })
     }
 
@@ -62,7 +66,9 @@ impl Quote {
             quotes.push(Quote {
                 id: row.get(0),
                 user_id: row.get(1),
-                text: row.get(2),
+                quote: row.get(2),
+                anime: row.get(3),
+                character: row.get(4),
             });
         }
 
@@ -77,19 +83,23 @@ impl Quote {
         Ok(Quote {
             id: row.get(0),
             user_id: row.get(1),
-            text: row.get(2),
+            quote: row.get(2),
+            anime: row.get(3),
+            character: row.get(4),
         })
     }
 
-    pub async fn update(&mut self, text: String) -> Result<(), Error> {
+    pub async fn update(&mut self, quote: String, anime: String, character: String) -> Result<(), Error> {
         let client = db::connect().await?();
         client
             .execute(
-                "UPDATE anime_quote.quotes SET text = $1, updated_at = $2 WHERE id = $3",
-                &[&text, &SystemTime::now(), &self.id],
+                "UPDATE anime_quote.quotes SET quote = $1, anime = $2, character = $3, updated_at = $4 WHERE id = $5",
+                &[&quote, &anime, &character, &SystemTime::now(), &self.id],
             )
             .await?;
-        self.text = text;
+        self.quote = quote;
+        self.anime = anime;
+        self.character = character;
         Ok(())
     }
 
@@ -113,7 +123,9 @@ impl Quote {
             quotes.push(Quote {
                 id: row.get(0),
                 user_id: row.get(1),
-                text: row.get(2),
+                quote: row.get(2),
+                anime: row.get(3),
+                character: row.get(4),
             });
         }
 
